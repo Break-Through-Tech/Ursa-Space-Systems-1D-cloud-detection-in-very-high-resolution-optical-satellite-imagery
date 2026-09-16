@@ -13,7 +13,7 @@
 | Lisa Wilder    | @Wilder407 | TBD        |
 | Aqila Nasiry   | @Devcode5     | TBD  |
 | Harshita Kumari   | @hk10877     | TBD  |
-| Amina Hassan     | @aminahassan  | Data preprocessing, feature engineering, data validation                 |
+| Justin Vu     | @justincvu  |TBD|
 | Priya Mehta      | @pmehta       | Model selection, hyperparameter tuning, model training and optimization  |
 | Chris Park       | @chrispark    | Model evaluation, performance analysis, results interpretation           |
 
