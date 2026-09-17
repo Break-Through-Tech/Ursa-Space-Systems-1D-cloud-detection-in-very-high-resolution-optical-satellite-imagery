@@ -1,5 +1,6 @@
 
 maxar-open-data/
+.DS_Store
 
 # Raw satellite imagery/masks are stored on shared Drive, not in git — see data/README.md
 **/*.tif
