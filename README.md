@@ -15,8 +15,6 @@
 | Samanvitha Paderthi   | @samanvithapaderthi | TBD  |
 | Harshita Kumari   | @hk10877     | TBD  |
 | Justin Vu     | @justincvu  |TBD|
-| Priya Mehta      | @pmehta       | Model selection, hyperparameter tuning, model training and optimization  |
-| Chris Park       | @chrispark    | Model evaluation, performance analysis, results interpretation           |
 | Star Vann        | @starieeee    | TBD                                                                      |
 
 ---
