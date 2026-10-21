@@ -9,5 +9,72 @@ files) — instead they live in two places:
   the same files directly from Maxar's public S3 bucket, so the Drive copy and a
   freshly generated local copy are always identical.
 
-Currently covers: `HurricaneHelene-Oct24` / catalog id `1030010105AA2600` (9 tiles —
-`visual`, `ms_analytic`, `pan_analytic`, `data-mask` assets each).
+Currently covers:
+
+- `HurricaneHelene-Oct24` / catalog id `1030010105AA2600` (9 tiles)
+- `Brazil-Flooding-May24` / catalog id `10300100887C0F00` (6 tiles, reported by
+  the team to have no cloud cover)
+
+Each tile has `visual`, `ms_analytic`, `pan_analytic`, and `data-mask` assets.
+
+## Human-verified cloud reference labels
+
+The GeoPackage `data-mask` assets describe image footprints; they are not cloud
+labels. To create a small reference set, use the RGB `visual.tif` tiles with the
+Colab/Jupyter reviewer in
+[`notebooks/review_reference_labels.py`](../notebooks/review_reference_labels.py).
+The script samples up to three 1024 x 1024 patches from each tile, stratified by
+the fraction of pixels marked cloud-like by a brightness/saturation heuristic.
+It prefers patches with at least 80% valid imagery, avoiding empty borders; if a
+tile has no such patch, it uses its non-empty patches and records that fallback.
+These masks are candidate labels only and must be checked and corrected by a
+human before they are used as reference data.
+
+In Colab, make sure both event folders are available under `data/`, install the
+notebook widget backend, enable it before importing the reviewer, and prepare a
+new output directory:
+
+```python
+!pip install ipympl
+%matplotlib widget
+
+from notebooks.review_reference_labels import (
+    launch_reviewer,
+    prepare_review_set,
+)
+
+review_dir = prepare_review_set(
+    input_dir="data",
+    output_dir="data/reference-review",
+    patch_size=1024,
+    patches_per_tile=3,
+    minimum_valid_fraction=0.80,
+    cloud_free_events=("Brazil-Flooding-May24",),
+    seed=42,
+)
+launch_reviewer(review_dir)
+```
+
+The reviewer starts with HSV threshold pseudo-labels (`0` clear/non-cloud,
+`1` candidate cloud, `255` ignore) for Hurricane Helene. For an event explicitly
+listed in `cloud_free_events`, valid pixels start as `0` (clear) while the
+separate candidate mask still shows where the threshold predicted cloud. This
+lets reviewers inspect and correct potential false positives in the reported
+cloud-free event; it does not automatically certify those pixels as reference
+labels. Draw polygons on the RGB view, choose a label/tag, and apply the
+correction. Ambiguous pixels should be marked ignore; clearly identifiable thin
+cloud can be labeled cloud and tagged. Smoke and bright ground are non-cloud and
+can be tagged for targeted analysis. A patch remains `pending` until a reviewer
+enters their name and selects **Mark reviewed**. Only patches with a matching
+`*_review.json` status of `reviewed` should be included in an evaluation set.
+The candidate mask is retained as `*_candidate.png`; reviewed labels, tags, and
+reviewer metadata are saved separately.
+Use `load_reviewed_labels(review_dir, patch_id)` from the same module to load a
+final mask and tags; it raises an error for patches that are still pending.
+
+The sampler tries to include low-candidate and high-candidate patches from each
+tile, avoids empty image borders, and records event/tile IDs in the manifest.
+Treat the Brazil tiles as a valuable negative-scene reference after review. For
+threshold selection and final scoring, keep the event/scene split independent:
+with only these two events, holding Brazil out can test false positives on a
+cloud-free scene, but it cannot also provide an independent cloudy-scene test.

@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 from urllib.request import Request, urlopen, urlretrieve
 
-GEOJSON_PATH = Path("maxar-open-data/datasets/HurricaneHelene-Oct24/1030010105AA2600.geojson")
-OUTPUT_DIR = Path("data/HurricaneHelene-Oct24/1030010105AA2600")
+GEOJSON_PATH = Path("maxar-open-data/datasets/Brazil-Flooding-May24/10300100887C0F00.geojson")
+OUTPUT_DIR = Path("data/Brazil-Flooding-May24/10300100887C0F00")
 ASSET_KEYS = ["visual", "ms_analytic", "pan_analytic", "data-mask"]
 
 with GEOJSON_PATH.open() as f:
