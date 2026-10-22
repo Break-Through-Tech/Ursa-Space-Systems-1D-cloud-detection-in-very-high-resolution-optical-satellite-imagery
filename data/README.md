@@ -21,7 +21,7 @@ Each tile has `visual`, `ms_analytic`, `pan_analytic`, and `data-mask` assets.
 
 The GeoPackage `data-mask` assets describe image footprints; they are not cloud
 labels. To create a small reference set, use the RGB `visual.tif` tiles with the
-Colab/Jupyter reviewer in
+VS Code Jupyter reviewer in
 [`notebooks/review_reference_labels.py`](../notebooks/review_reference_labels.py).
 The script samples up to three 1024 x 1024 patches from each tile, stratified by
 the fraction of pixels marked cloud-like by a brightness/saturation heuristic.
@@ -30,30 +30,27 @@ tile has no such patch, it uses its non-empty patches and records that fallback.
 These masks are candidate labels only and must be checked and corrected by a
 human before they are used as reference data.
 
-In Colab, make sure both event folders are available under `data/`, install the
-notebook widget backend, enable it before importing the reviewer, and prepare a
-new output directory:
+Use [`notebooks/Review_Cloud_Labels.ipynb`](../notebooks/Review_Cloud_Labels.ipynb)
+in VS Code with the Jupyter extension. The coordinator runs its setup and
+generation cells once using the local `data/` folder. The generated review
+bundle is stored at `data/reference-review-v2/` and contains small RGB patches,
+candidate masks, and a manifest; the original TIFFs remain ignored by Git.
 
-```python
-!pip install ipympl
-%matplotlib widget
+In VS Code's Source Control view, the coordinator commits and pushes
+`data/reference-review-v2/manifest.json` and `data/reference-review-v2/patches/`.
+Other reviewers pull the repository, open the same notebook, skip patch
+generation, and run the review cell with their own stable reviewer ID. Each
+person's masks, tags, and status are saved separately in
+`data/reference-review-v2/annotations/<reviewer_id>/`; commit and push only that
+person's annotation folder to share progress. Pull the latest branch before
+starting a review session and push the annotation changes afterward. This keeps
+review work in the repository, avoids Drive access and re-uploading large TIFFs,
+and lets each person resume their annotations after reopening VS Code.
 
-from notebooks.review_reference_labels import (
-    launch_reviewer,
-    prepare_review_set,
-)
-
-review_dir = prepare_review_set(
-    input_dir="data",
-    output_dir="data/reference-review",
-    patch_size=1024,
-    patches_per_tile=3,
-    minimum_valid_fraction=0.80,
-    cloud_free_events=("Brazil-Flooding-May24",),
-    seed=42,
-)
-launch_reviewer(review_dir)
-```
+The coordinator needs local copies of the raw TIFFs to generate patches.
+Reviewers only need the committed patch bundle and code; they do not need the
+source TIFFs. Ensure all reviewers use the same generated patch bundle and
+reviewer IDs remain unique.
 
 The reviewer starts with HSV threshold pseudo-labels (`0` clear/non-cloud,
 `1` candidate cloud, `255` ignore) for Hurricane Helene. For an event explicitly
@@ -66,11 +63,13 @@ correction. Ambiguous pixels should be marked ignore; clearly identifiable thin
 cloud can be labeled cloud and tagged. Smoke and bright ground are non-cloud and
 can be tagged for targeted analysis. A patch remains `pending` until a reviewer
 enters their name and selects **Mark reviewed**. Only patches with a matching
-`*_review.json` status of `reviewed` should be included in an evaluation set.
+`annotations/<reviewer_id>/*_review.json` status of `reviewed` should be
+included in an evaluation set.
 The candidate mask is retained as `*_candidate.png`; reviewed labels, tags, and
 reviewer metadata are saved separately.
-Use `load_reviewed_labels(review_dir, patch_id)` from the same module to load a
-final mask and tags; it raises an error for patches that are still pending.
+Use `load_reviewed_labels(review_dir, patch_id, reviewer_id)` from the same
+module to load a final mask and tags; it raises an error for patches that are
+still pending.
 
 The sampler tries to include low-candidate and high-candidate patches from each
 tile, avoids empty image borders, and records event/tile IDs in the manifest.

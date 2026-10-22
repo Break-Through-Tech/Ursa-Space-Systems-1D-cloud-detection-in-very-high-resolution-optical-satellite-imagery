@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
@@ -97,6 +98,13 @@ def _patch_locations(height: int, width: int, patch_size: int) -> list[tuple[int
     ]
 
 
+def _event_name(source_root: Path, tile_path: Path) -> str:
+    relative_parts = tile_path.relative_to(source_root).parts
+    if len(relative_parts) == 3:
+        return source_root.name
+    return relative_parts[0] if len(relative_parts) > 1 else source_root.name
+
+
 def _select_stratified(
     candidates: list[dict[str, Any]],
     count: int,
@@ -143,12 +151,7 @@ def prepare_review_set(
     if not visual_tiles:
         raise FileNotFoundError(f"No *-visual.tif files found under {source_root}")
 
-    available_events = {
-        path.relative_to(source_root).parts[0]
-        if len(path.relative_to(source_root).parts) > 1
-        else source_root.name
-        for path in visual_tiles
-    }
+    available_events = {_event_name(source_root, path) for path in visual_tiles}
     clear_event_names = set(cloud_free_events)
     unknown_clear_events = clear_event_names - available_events
     if unknown_clear_events:
@@ -198,7 +201,7 @@ def prepare_review_set(
             selection_pool = preferred or nonempty
             chosen = _select_stratified(selection_pool, patches_per_tile, rng)
             relative_path = tile_path.relative_to(source_root)
-            event_id = relative_path.parts[0] if len(relative_path.parts) > 1 else source_root.name
+            event_id = _event_name(source_root, tile_path)
             tile_id = tile_path.parent.name
             scene_is_cloud_free = event_id in clear_event_names
             for item in chosen:
@@ -241,20 +244,9 @@ def prepare_review_set(
             brightness_threshold,
             saturation_threshold,
         )
-        initial_labels = candidate.copy()
-        if patch["scene_condition"] == "reported_cloud_free":
-            initial_labels[valid] = LABEL_CLEAR
         patch_id = patch["id"]
         Image.fromarray(rgb).save(patches_dir / f"{patch_id}_rgb.jpg", quality=95)
         Image.fromarray(candidate).save(patches_dir / f"{patch_id}_candidate.png")
-        Image.fromarray(initial_labels).save(patches_dir / f"{patch_id}_labels.png")
-        np.savez_compressed(
-            patches_dir / f"{patch_id}_tags.npz",
-            smoke=np.zeros(candidate.shape, dtype=np.uint8),
-            bright_ground=np.zeros(candidate.shape, dtype=np.uint8),
-            thin_cloud=np.zeros(candidate.shape, dtype=np.uint8),
-        )
-        patch["review_status"] = "pending"
 
     manifest = {
         "input_directory": str(source_root),
@@ -282,13 +274,20 @@ def prepare_review_set(
     return destination
 
 
+def _reviewer_directory(output_dir: str | Path, reviewer_id: str) -> Path:
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", reviewer_id):
+        raise ValueError("reviewer_id may contain only letters, numbers, '_' and '-'")
+    return Path(output_dir).expanduser().resolve() / "annotations" / reviewer_id
+
+
 def load_reviewed_labels(
     output_dir: str | Path,
     patch_id: str,
+    reviewer_id: str,
 ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
-    """Load a human-reviewed mask and tags; reject pending pseudo-labels."""
+    """Load one reviewer's mask and tags; reject pending pseudo-labels."""
     destination = Path(output_dir).expanduser().resolve()
-    patch_dir = destination / "patches"
+    patch_dir = _reviewer_directory(destination, reviewer_id)
     stem = patch_dir / patch_id
     review_path = stem.with_name(stem.name + "_review.json")
     if not review_path.exists():
@@ -296,6 +295,8 @@ def load_reviewed_labels(
     review = json.loads(review_path.read_text(encoding="utf-8"))
     if review.get("status") != "reviewed":
         raise ValueError(f"Patch {patch_id} is still pending human review")
+    if review.get("reviewer_id") != reviewer_id:
+        raise ValueError(f"Review metadata for {patch_id} does not match {reviewer_id}")
     labels = np.asarray(
         Image.open(stem.with_name(stem.name + "_labels.png")),
         dtype=np.uint8,
@@ -312,8 +313,8 @@ def load_reviewed_labels(
     return labels, tags
 
 
-def launch_reviewer(output_dir: str | Path) -> None:
-    """Open the Colab/Jupyter polygon reviewer for a prepared review set."""
+def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
+    """Open the reviewer, saving edits separately under this reviewer's ID."""
     import ipywidgets as widgets
     import matplotlib.pyplot as plt
     from IPython.display import display
@@ -321,6 +322,7 @@ def launch_reviewer(output_dir: str | Path) -> None:
     from matplotlib.widgets import PolygonSelector
 
     destination = Path(output_dir).expanduser().resolve()
+    annotation_dir = _reviewer_directory(destination, reviewer_id)
     manifest_path = destination / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"Review manifest not found: {manifest_path}")
@@ -329,11 +331,27 @@ def launch_reviewer(output_dir: str | Path) -> None:
     if not patches:
         raise ValueError("The review manifest contains no patches")
     patches_dir = destination / "patches"
+    annotation_dir.mkdir(parents=True, exist_ok=True)
     patch_by_id = {patch["id"]: patch for patch in patches}
+
+    def annotation_paths(patch_id: str) -> dict[str, Path]:
+        stem = annotation_dir / patch_id
+        return {
+            "labels": stem.with_name(stem.name + "_labels.png"),
+            "tags": stem.with_name(stem.name + "_tags.npz"),
+            "review": stem.with_name(stem.name + "_review.json"),
+        }
+
+    def review_status(patch_id: str) -> str:
+        review_path = annotation_paths(patch_id)["review"]
+        if not review_path.exists():
+            return "pending"
+        return json.loads(review_path.read_text(encoding="utf-8"))["status"]
+
     patch_options = [
         (
             f"{patch['id']} | candidate cloud {patch['pseudo_cloud_fraction']:.1%} "
-            f"| {patch['review_status']}",
+            f"| {review_status(patch['id'])}",
             patch["id"],
         )
         for patch in patches
@@ -390,20 +408,32 @@ def launch_reviewer(output_dir: str | Path) -> None:
         return {
             "rgb": stem.with_name(stem.name + "_rgb.jpg"),
             "candidate": stem.with_name(stem.name + "_candidate.png"),
-            "labels": stem.with_name(stem.name + "_labels.png"),
-            "tags": stem.with_name(stem.name + "_tags.npz"),
-            "review": stem.with_name(stem.name + "_review.json"),
         }
 
     def load_patch(patch_id: str) -> None:
         paths = patch_paths(patch_id)
+        saved = annotation_paths(patch_id)
         state["patch_id"] = patch_id
         state["rgb"] = np.asarray(Image.open(paths["rgb"]).convert("RGB"))
         state["candidate"] = np.asarray(Image.open(paths["candidate"]), dtype=np.uint8)
-        state["labels"] = np.asarray(Image.open(paths["labels"]), dtype=np.uint8)
-        with np.load(paths["tags"], allow_pickle=False) as saved_tags:
+        if saved["labels"].exists() and saved["tags"].exists():
+            state["labels"] = np.asarray(Image.open(saved["labels"]), dtype=np.uint8)
+            with np.load(saved["tags"], allow_pickle=False) as saved_tags:
+                state["tags"] = {
+                    name: np.asarray(saved_tags[name], dtype=np.uint8).copy()
+                    for name in ("smoke", "bright_ground", "thin_cloud")
+                }
+        else:
+            if saved["labels"].exists() or saved["tags"].exists() or saved["review"].exists():
+                raise ValueError(
+                    f"Incomplete saved annotation for {patch_id} under {annotation_dir}"
+                )
+            state["labels"] = state["candidate"].copy()
+            if patch_by_id[patch_id]["scene_condition"] == "reported_cloud_free":
+                valid = state["candidate"] != LABEL_IGNORE
+                state["labels"][valid] = LABEL_CLEAR
             state["tags"] = {
-                name: np.asarray(saved_tags[name], dtype=np.uint8).copy()
+                name: np.zeros(state["candidate"].shape, dtype=np.uint8)
                 for name in ("smoke", "bright_ground", "thin_cloud")
             }
         state["undo"] = None
@@ -436,7 +466,7 @@ def launch_reviewer(output_dir: str | Path) -> None:
             axis.set_ylim(rgb.shape[0] - 0.5, -0.5)
         selector.set_active(True)
         figure.canvas.draw_idle()
-        paths = patch_paths(state["patch_id"])
+        paths = annotation_paths(state["patch_id"])
         review_status = "pending"
         if paths["review"].exists():
             review_status = json.loads(paths["review"].read_text(encoding="utf-8"))[
@@ -465,13 +495,14 @@ def launch_reviewer(output_dir: str | Path) -> None:
 
     def save_patch(review_status: str) -> None:
         patch_id = state["patch_id"]
-        paths = patch_paths(patch_id)
+        paths = annotation_paths(patch_id)
         Image.fromarray(state["labels"]).save(paths["labels"])
         np.savez_compressed(paths["tags"], **state["tags"])
         patch = patch_by_id[patch_id]
         review_data = {
             "patch_id": patch_id,
             "status": review_status,
+            "reviewer_id": reviewer_id,
             "reviewer": reviewer_input.value.strip(),
             "reviewed_at_utc": (
                 datetime.now(timezone.utc).isoformat()
@@ -498,16 +529,11 @@ def launch_reviewer(output_dir: str | Path) -> None:
             json.dumps(review_data, indent=2) + "\n",
             encoding="utf-8",
         )
-        patch["review_status"] = review_status
         state["dirty"] = False
-        manifest_path.write_text(
-            json.dumps(manifest, indent=2) + "\n",
-            encoding="utf-8",
-        )
         patch_select.options = [
             (
                 f"{item['id']} | candidate cloud "
-                f"{item['pseudo_cloud_fraction']:.1%} | {item['review_status']}",
+                f"{item['pseudo_cloud_fraction']:.1%} | {review_status(item['id'])}",
                 item["id"],
             )
             for item in patches
@@ -647,7 +673,10 @@ def main() -> None:
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     if manifest["tiles_skipped_no_valid_patches"]:
         print("Skipped tiles with no valid image pixels:", manifest["tiles_skipped_no_valid_patches"])
-    print("Open a notebook with the ipympl widget backend and call launch_reviewer().")
+    print(
+        "Open a notebook with the ipympl backend and call "
+        "launch_reviewer(review_dir, reviewer_id='your_id')."
+    )
 
 
 if __name__ == "__main__":
