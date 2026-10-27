@@ -15,7 +15,8 @@
 | Samanvitha Paderthi   | @samanvithapaderthi | TBD  |
 | Harshita Kumari   | @hk10877     | TBD  |
 | Justin Vu     | @justincvu  |TBD|
-| Star Vann        | @starieeee    | TBD                                                                      |
+| Star Vann        | @starieeee    | TBD     
+| Zahraa Al-Naami        | @alnaamizahraa    | TBD    |
 
 ---
 
