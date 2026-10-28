@@ -249,7 +249,7 @@ def prepare_review_set(
         Image.fromarray(candidate).save(patches_dir / f"{patch_id}_candidate.png")
 
     manifest = {
-        "input_directory": str(source_root),
+        "input_directory": source_root.name,
         "patch_size": patch_size,
         "minimum_valid_fraction": minimum_valid_fraction,
         "cloud_free_events": sorted(clear_event_names),
