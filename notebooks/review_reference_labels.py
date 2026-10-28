@@ -280,6 +280,70 @@ def _reviewer_directory(output_dir: str | Path, reviewer_id: str) -> Path:
     return Path(output_dir).expanduser().resolve() / "annotations" / reviewer_id
 
 
+def create_candidate_overlay_previews(
+    patches_dir: str | Path,
+    output_dir: str | Path | None = None,
+    cloud_opacity: float = 0.55,
+) -> list[Path]:
+    """Save human-viewable RGB previews with candidate cloud pixels in blue."""
+    patch_root = Path(patches_dir).expanduser().resolve()
+    if not patch_root.is_dir():
+        raise FileNotFoundError(f"Patch directory does not exist: {patch_root}")
+    if not 0 <= cloud_opacity <= 1:
+        raise ValueError("cloud_opacity must be between 0 and 1")
+
+    candidates = sorted(patch_root.glob("*_candidate.png"))
+    if not candidates:
+        raise FileNotFoundError(f"No *_candidate.png files found under {patch_root}")
+
+    preview_root = (
+        Path(output_dir).expanduser().resolve()
+        if output_dir is not None
+        else patch_root.parent / "candidate-overlays"
+    )
+    preview_root.mkdir(parents=True, exist_ok=True)
+    previews: list[Path] = []
+    for candidate_path in candidates:
+        patch_id = candidate_path.name.removesuffix("_candidate.png")
+        rgb_path = patch_root / f"{patch_id}_rgb.jpg"
+        if not rgb_path.is_file():
+            raise FileNotFoundError(
+                f"RGB patch for {candidate_path.name} not found: {rgb_path}"
+            )
+
+        with Image.open(rgb_path) as image:
+            rgb = np.asarray(image.convert("RGB"), dtype=np.uint8)
+        with Image.open(candidate_path) as image:
+            labels = np.asarray(image, dtype=np.uint8)
+        if labels.shape != rgb.shape[:2]:
+            raise ValueError(
+                f"Mask dimensions for {candidate_path.name} do not match {rgb_path.name}"
+            )
+        if not np.isin(labels, (LABEL_CLEAR, LABEL_CLOUD, LABEL_IGNORE)).all():
+            raise ValueError(f"Unexpected label values in {candidate_path}")
+
+        overlay = rgb.astype(np.float32)
+        cloud = labels == LABEL_CLOUD
+        overlay[cloud] = (
+            (1 - cloud_opacity) * overlay[cloud]
+            + cloud_opacity * np.array((13, 115, 255), dtype=np.float32)
+        )
+        ignored = labels == LABEL_IGNORE
+        overlay[ignored] = (
+            (1 - cloud_opacity) * overlay[ignored]
+            + cloud_opacity * np.array((255, 179, 0), dtype=np.float32)
+        )
+
+        preview_path = preview_root / f"{patch_id}_candidate_overlay.jpg"
+        Image.fromarray(np.clip(overlay, 0, 255).astype(np.uint8)).save(
+            preview_path,
+            quality=95,
+        )
+        previews.append(preview_path)
+
+    return previews
+
+
 def load_reviewed_labels(
     output_dir: str | Path,
     patch_id: str,

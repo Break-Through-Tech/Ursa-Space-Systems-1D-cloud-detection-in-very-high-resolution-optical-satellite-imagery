@@ -35,9 +35,14 @@ in VS Code with the Jupyter extension. The coordinator runs its setup and
 generation cells once using the local `data/` folder. The generated review
 bundle is stored at `data/reference-review-v2/` and contains small RGB patches,
 candidate masks, and a manifest; the original TIFFs remain ignored by Git.
+To view every candidate mask over its RGB patch without opening the interactive
+reviewer one patch at a time, run the batch-preview cell in the notebook. It
+saves blue-overlay JPEGs under `data/reference-review-v2/candidate-overlays/`;
+the original candidate PNG masks are unchanged.
 
 In VS Code's Source Control view, the coordinator commits and pushes
-`data/reference-review-v2/manifest.json` and `data/reference-review-v2/patches/`.
+`data/reference-review-v2/manifest.json`, `patches/`, and
+`candidate-overlays/`.
 Other reviewers pull the repository, open the same notebook, skip patch
 generation, and run the review cell with their own stable reviewer ID. Each
 person's masks, tags, and status are saved separately in
