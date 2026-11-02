@@ -692,9 +692,9 @@ def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
         ],
         layout=widgets.Layout(flex_flow="row wrap"),
     )
+    load_patch(patches[0]["id"])
     display(widgets.VBox([controls, status]))
     display(figure.canvas)
-    load_patch(patches[0]["id"])
 
 
 def main() -> None:
