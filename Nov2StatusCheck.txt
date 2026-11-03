@@ -1,0 +1,23 @@
+
+The key distinction is between evaluating detectors and training a new model. The group doesn’t need to load an entire disaster before it can compare methods.
+
+Recommended sequence
+Agree on what “model selection” means. Start by comparing the current classical methods and one pretrained segmentation model on the same reviewed patches. That’s evaluation, not fine-tuning, so it doesn’t require a large training set.
+Finish and verify reference labels. The 45 patches in the review manifest are useful starting images, but their masks are heuristic candidates, not ground truth. Reviewers should correct them, mark uncertain/invalid pixels as ignored, and resolve disagreements. Have at least two people independently review some of the same patches to check consistency.
+Choose a leakage-safe split. Assign whole tiles—or preferably whole scenes/events—to train, development, and test groups. Don’t randomly split pixels or neighboring patches from one tile across those groups. Keep the test labels untouched until the comparison is final.
+Run all methods consistently. Use the same image patches, valid-pixel handling, and agreed preprocessing for the classical methods and pretrained model. Compare cloud precision, recall, F1, and IoU on reviewed pixels, then inspect difficult examples such as thin cloud, smoke, and bright surfaces.
+Decide whether fine-tuning is warranted. If the goal becomes training a segmentation model, the reviewed image/mask pairs are the training data—but 45 patches are only an initial set. Plan to label additional windows, especially from scenes/events not used for testing.
+Do we load the whole disaster?
+Not for the initial comparison. Start with the reviewed 1024×1024 patches so every method can be measured against the same reference labels. Later, after selecting or tuning a method, run inference across full scenes by reading them in tiles/windows and stitching the predicted masks together. Whole-disaster predictions show operational behavior, but without reference labels across those scenes they are not a quantitative accuracy test.
+
+For supervised training, don’t simply extract more windows from a disaster and assume they are labeled. Every training window needs a matching reviewed mask. You can label more windows from the same source scenes for training, while reserving separate tiles/scenes/events for evaluation. If you want to claim generalization to a new disaster, reserve that event entirely as a test set.
+
+The existing pipeline is a useful start for consistent preprocessing and detector inputs, but its 10% downsampling/normalization differs from the native-resolution review patches. The group should agree whether to adapt that pipeline to the patches or prepare all methods’ inputs through one shared path before scoring.
+
+Decisions for the next group meeting
+Labeling: Who reviews which patches, what cloud/clear/ignore rules to use, and which overlap subset everyone reviews for agreement?
+Scope: Is the immediate deliverable a fair comparison of classical and pretrained methods, or also a fine-tuned model?
+Data split: Which tile(s)/event(s) are held out for testing?
+Preprocessing: What resolution, bands, normalization, and invalid-pixel convention will every method use?
+Next independent tasks: reviewers label patches; one person documents the split and review protocol; another adapts the pipeline to run methods on those patches; another selects and tests a pretrained model. Recombine the results at the next weekly meeting.
+In short: the jump is from heuristic candidate masks to trusted labels, then to a common, leakage-safe benchmark. The pipeline can organize that benchmark; full-disaster tiled inference comes after the methods have been compared on labeled data.

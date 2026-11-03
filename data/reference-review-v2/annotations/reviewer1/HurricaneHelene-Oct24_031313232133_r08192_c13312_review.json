@@ -1,0 +1,18 @@
+{
+  "patch_id": "HurricaneHelene-Oct24_031313232133_r08192_c13312",
+  "status": "reviewed",
+  "reviewer_id": "reviewer1",
+  "reviewer": "Lisa",
+  "reviewed_at_utc": "2026-11-03T21:49:54.022171+00:00",
+  "pseudo_cloud_fraction": 0.0,
+  "event_id": "HurricaneHelene-Oct24",
+  "scene_condition": "cloudy_or_unverified",
+  "valid_fraction": 1.0,
+  "ignored_fraction": 0.0,
+  "final_cloud_fraction": 0.0,
+  "tagged_pixel_counts": {
+    "smoke": 0,
+    "bright_ground": 0,
+    "thin_cloud": 0
+  }
+}

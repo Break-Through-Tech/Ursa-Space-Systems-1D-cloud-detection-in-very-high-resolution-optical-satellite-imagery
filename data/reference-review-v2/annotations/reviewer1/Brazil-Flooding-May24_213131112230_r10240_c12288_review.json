@@ -1,0 +1,18 @@
+{
+  "patch_id": "Brazil-Flooding-May24_213131112230_r10240_c12288",
+  "status": "reviewed",
+  "reviewer_id": "reviewer1",
+  "reviewer": "Lisa",
+  "reviewed_at_utc": "2026-11-03T21:21:08.931103+00:00",
+  "pseudo_cloud_fraction": 6.67572021484375e-06,
+  "event_id": "Brazil-Flooding-May24",
+  "scene_condition": "reported_cloud_free",
+  "valid_fraction": 1.0,
+  "ignored_fraction": 0.0,
+  "final_cloud_fraction": 0.0,
+  "tagged_pixel_counts": {
+    "smoke": 0,
+    "bright_ground": 0,
+    "thin_cloud": 0
+  }
+}

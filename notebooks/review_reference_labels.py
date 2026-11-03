@@ -361,9 +361,10 @@ def load_reviewed_labels(
         raise ValueError(f"Patch {patch_id} is still pending human review")
     if review.get("reviewer_id") != reviewer_id:
         raise ValueError(f"Review metadata for {patch_id} does not match {reviewer_id}")
-    labels = np.asarray(
+    labels = np.array(
         Image.open(stem.with_name(stem.name + "_labels.png")),
         dtype=np.uint8,
+        copy=True,
     )
     with np.load(stem.with_name(stem.name + "_tags.npz"), allow_pickle=False) as saved:
         tags = {
@@ -439,8 +440,9 @@ def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
     reviewed_button = widgets.Button(description="Mark reviewed", button_style="success")
     status = widgets.HTML()
 
-    figure, axes = plt.subplots(1, 3, figsize=(16, 6))
-    figure.tight_layout()
+    with plt.ioff():
+        figure, axes = plt.subplots(1, 3, figsize=(16, 6))
+        figure.tight_layout()
     state: dict[str, Any] = {
         "patch_id": "",
         "rgb": None,
@@ -481,7 +483,11 @@ def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
         state["rgb"] = np.asarray(Image.open(paths["rgb"]).convert("RGB"))
         state["candidate"] = np.asarray(Image.open(paths["candidate"]), dtype=np.uint8)
         if saved["labels"].exists() and saved["tags"].exists():
-            state["labels"] = np.asarray(Image.open(saved["labels"]), dtype=np.uint8)
+            state["labels"] = np.array(
+                Image.open(saved["labels"]),
+                dtype=np.uint8,
+                copy=True,
+            )
             with np.load(saved["tags"], allow_pickle=False) as saved_tags:
                 state["tags"] = {
                     name: np.asarray(saved_tags[name], dtype=np.uint8).copy()
@@ -525,9 +531,13 @@ def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
         overlay_artists[0].set_data(np.zeros((*rgb.shape[:2], 4), dtype=np.float32))
         overlay_artists[1].set_data(overlay(candidate, candidate=True))
         overlay_artists[2].set_data(overlay(labels))
+        height, width = rgb.shape[:2]
+        extent = (-0.5, width - 0.5, height - 0.5, -0.5)
+        for artist in image_artists + overlay_artists:
+            artist.set_extent(extent)
         for axis in axes:
-            axis.set_xlim(-0.5, rgb.shape[1] - 0.5)
-            axis.set_ylim(rgb.shape[0] - 0.5, -0.5)
+            axis.set_xlim(-0.5, width - 0.5)
+            axis.set_ylim(height - 0.5, -0.5)
         selector.set_active(True)
         figure.canvas.draw_idle()
         paths = annotation_paths(state["patch_id"])
@@ -557,7 +567,7 @@ def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
             "| draw a polygon on the left, choose a class, then apply."
         )
 
-    def save_patch(review_status: str) -> None:
+    def save_patch(new_review_status: str) -> None:
         patch_id = state["patch_id"]
         paths = annotation_paths(patch_id)
         Image.fromarray(state["labels"]).save(paths["labels"])
@@ -565,12 +575,12 @@ def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
         patch = patch_by_id[patch_id]
         review_data = {
             "patch_id": patch_id,
-            "status": review_status,
+            "status": new_review_status,
             "reviewer_id": reviewer_id,
             "reviewer": reviewer_input.value.strip(),
             "reviewed_at_utc": (
                 datetime.now(timezone.utc).isoformat()
-                if review_status == "reviewed"
+                if new_review_status == "reviewed"
                 else None
             ),
             "pseudo_cloud_fraction": patch["pseudo_cloud_fraction"],
@@ -693,8 +703,7 @@ def launch_reviewer(output_dir: str | Path, reviewer_id: str) -> None:
         layout=widgets.Layout(flex_flow="row wrap"),
     )
     load_patch(patches[0]["id"])
-    display(widgets.VBox([controls, status]))
-    display(figure.canvas)
+    display(widgets.VBox([controls, status, figure.canvas]))
 
 
 def main() -> None:
