@@ -1,0 +1,6 @@
+{
+  "patch_size": 31,
+  "threshold": 0.35,
+  "selected_on": "dev pooled-pixel F1",
+  "label_status": "human_reviewed_single_reviewer"
+}

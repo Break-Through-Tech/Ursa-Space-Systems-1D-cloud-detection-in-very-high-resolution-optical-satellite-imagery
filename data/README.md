@@ -76,6 +76,23 @@ Use `load_reviewed_labels(review_dir, patch_id, reviewer_id)` from the same
 module to load a final mask and tags; it raises an error for patches that are
 still pending.
 
+To prepare reviewed patches for the DCP benchmark, run
+`python notebooks/prepare_reviewed_eval.py` from the repository root. The
+script writes a reusable `outputs/reviewed_eval_set/` with the expected
+`dev/{images,masks}` and `test/{images,masks}` layout, plus
+`split_manifest.csv` and `dataset_info.json`. It includes only patches marked
+`reviewed`, checks their RGB/mask pairs, and assigns whole `(event, tile)` groups
+to splits with seed 42 (25% of each event's reviewed tiles held out for test).
+Generated copies are ignored by Git and can be recreated from the committed
+review bundle.
+
+This tile-grouped split prevents patches from a source tile crossing splits,
+but both sets still share the same two events. Since the current Brazil labels
+are cloud-free and Hurricane Helene supplies the cloud-positive examples, this
+is a preliminary within-event benchmark, not an independent event-level test.
+The current annotations are also single-reviewer labels; scores should be
+treated accordingly.
+
 The sampler tries to include low-candidate and high-candidate patches from each
 tile, avoids empty image borders, and records event/tile IDs in the manifest.
 Treat the Brazil tiles as a valuable negative-scene reference after review. For

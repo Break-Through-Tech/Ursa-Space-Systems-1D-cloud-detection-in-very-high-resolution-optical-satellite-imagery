@@ -5,3 +5,8 @@ maxar-open-data/
 # Raw satellite imagery/masks are stored on shared Drive, not in git — see data/README.md
 **/*.tif
 **/*.gpkg
+/outputs/reviewed_eval_set/
+
+*.pyc
+
+__init__.py

@@ -1,0 +1,16 @@
+image_id,split,method,label_status,valid_source,patch_size,dark_channel_threshold,predict_seconds,tp,fp,fn,tn,n_scored,precision,recall,f1,iou
+Brazil-Flooding-May24_213131112123_r08192_c15360,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.0646340410457924,0,16830,0,878333,895163,0.0,nan,0.0,0.0
+Brazil-Flooding-May24_213131112123_r09216_c14336,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06756925000809133,0,4083,0,1044493,1048576,0.0,nan,0.0,0.0
+Brazil-Flooding-May24_213131112123_r10240_c12288,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06745933298952878,0,12,0,1048564,1048576,0.0,nan,0.0,0.0
+Brazil-Flooding-May24_213131112212_r01024_c13312,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06881220801733434,0,0,0,1048576,1048576,nan,nan,nan,nan
+Brazil-Flooding-May24_213131112212_r05120_c11264,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06928908301051706,0,0,0,1048576,1048576,nan,nan,nan,nan
+Brazil-Flooding-May24_213131112212_r06144_c12288,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06792100006714463,0,27829,0,1020747,1048576,0.0,nan,0.0,0.0
+HurricaneHelene-Oct24_031313232133_r08192_c06144,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.05469374998938292,1044602,2912,68,994,1048576,0.9972200848866937,0.9999349076741938,0.9985756510899615,0.997155353948426
+HurricaneHelene-Oct24_031313232133_r08192_c13312,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.09838154097087681,0,0,0,1048576,1048576,nan,nan,nan,nan
+HurricaneHelene-Oct24_031313232133_r14336_c06144,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06194716598838568,0,0,22,1048554,1048576,nan,0.0,0.0,0.0
+HurricaneHelene-Oct24_031313233021_r03072_c02048,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06344658299349248,9321,0,53811,985444,1048576,1.0,0.14764303364379394,0.2572978344582005,0.14764303364379394
+HurricaneHelene-Oct24_031313233021_r04096_c02048,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.061313958023674786,624364,16981,73152,334079,1048576,0.9735228309256329,0.8951249863802407,0.9326793446070951,0.8738511148402303
+HurricaneHelene-Oct24_031313233021_r07168_c03072,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.0598827920621261,0,0,5168,1043408,1048576,nan,0.0,0.0,0.0
+HurricaneHelene-Oct24_031313233022_r01024_c07168,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06386037496849895,0,57258,0,991318,1048576,0.0,nan,0.0,0.0
+HurricaneHelene-Oct24_031313233022_r03072_c07168,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06598445796407759,0,0,0,1048576,1048576,nan,nan,nan,nan
+HurricaneHelene-Oct24_031313233022_r08192_c02048,test,dark_channel_prior,human_reviewed_single_reviewer,reference_coverage,31,0.35,0.06870770803652704,0,0,0,1048576,1048576,nan,nan,nan,nan
