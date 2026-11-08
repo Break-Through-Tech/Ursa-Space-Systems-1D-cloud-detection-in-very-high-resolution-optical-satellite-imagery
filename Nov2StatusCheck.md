@@ -51,3 +51,18 @@ The HRC_WHU dataset description reports 150 images, RGB, expert cloud masks, and
 The Cloud-Adapter model repository provides a dedicated HRC_WHU checkpoint. Its dataset loader documents 256×256 RGB samples, with 120 train and 30 test images. Its output classes are clear sky and cloud.
 The official inference app resizes inputs to 256×256 with bilinear interpolation and applies per-image min–max scaling. However, the model config also specifies mean/std normalization, so I’d verify preprocessing against the repository’s example images before trusting a comparison. For our benchmark, use native-resolution 256×256 crops from each 1024 patch—don’t resize the entire patch down to 256, which would discard cloud detail.
 This is a better candidate for a small comparison, but it’s less plug-and-play: it uses the project’s custom MMSegmentation implementation, and the checkpoint is about 1.32 GB. I’d first test 2–3 dev patches, check the predictions visually and confirm preprocessing, then decide whether it’s worth adding to the full evaluation.
+
+
+--- 
+
+The HRC_WHU checkpoint ran successfully on all three selected dev patches using Apple MPS. It performs the same task as the reviewer labels: binary cloud-versus-clear segmentation.
+
+Method	Clear Brazil F1 / IoU	Helene ~4% cloud	Helene ~76% cloud	Pooled F1 / IoU
+HOT RGB	0.000 / 0.000	0.377 / 0.232	0.947 / 0.900	0.928 / 0.866
+CloudSEN12Plus SegFormer	undefined	0.565 / 0.394	0.946 / 0.897	0.914 / 0.842
+Cloud-Adapter HRC_WHU	0.000 / 0.000	0.777 / 0.635	0.963 / 0.929	0.954 / 0.912
+These are descriptive results, not a model ranking: this is only three patches from the dev split, the labels are from the initial single-reviewer pass, and HOT’s threshold was tuned on dev. On the all-clear Brazil patch, HRC_WHU produced 200 false-positive pixels; HOT produced 3, while SegFormer predicted no cloud.
+
+The pilot uses sixteen native-resolution 256×256 crops per patch, with BGR input converted to RGB and normalized using the checkpoint’s configured mean/std. I found the published inference config specified 512 pixels, which prevented the checkpoint’s learned positional embeddings from loading; the runner now overrides the input size to 256 to match the official training config. MPS inference required PyTorch’s CPU fallback for bicubic interpolation.
+
+The HRC_WHU checkpoint is a closer resolution/domain comparison than Sentinel-2, but it is Google Earth imagery—not Maxar—and Maxar’s finer pixels mean each crop covers less ground. Results and comparison images are in the pilot output folder. The pipeline README documents the setup and findings, and the pilot runner was syntax-checked; the generated outputs were verified.
