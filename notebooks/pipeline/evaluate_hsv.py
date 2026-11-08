@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageOps
 
 from .methods.hsv_threshold import HSVThreshold
 from .methods.hsv_otsu import HSVOtsu
+from .methods.hot import HOTBaseline
 
 
 def features_from_rgb(rgb):
@@ -160,10 +161,13 @@ def save_comparison(rgb, ref, pred, valid, path, title):
 def evaluate(
     eval_root,
     split="dev",
-    out_root="outputs/hsv_benchmark",
+    out_root="outputs/classical_reviewed_benchmark",
     label_status="heuristic",
     v_min=0.70,
     s_max=0.20,
+    hot_threshold=0.20,
+    hot_slope=0.5,
+    hot_intercept=0.0,
 ):
     if split not in {"dev", "test"}:
         raise ValueError("split must be dev or test")
@@ -193,6 +197,11 @@ def evaluate(
     methods = [
         fixed,
         HSVOtsu(s_max=s_max, v_fallback=v_min),
+        HOTBaseline(
+            threshold=hot_threshold,
+            slope=hot_slope,
+            intercept=hot_intercept,
+        ),
     ]
     rows = []
 
@@ -244,11 +253,14 @@ def evaluate(
 
     destination = Path(out_root) / split
 
+    metric_fields = list(dict.fromkeys(
+        key for row in rows for key in row
+    ))
     with (destination / "metrics_per_image.csv").open(
         "w", newline="", encoding="utf-8"
     ) as f:
         writer = csv.DictWriter(
-            f, fieldnames=list(rows[0])
+            f, fieldnames=metric_fields
         )
         writer.writeheader()
         writer.writerows(rows)

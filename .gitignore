@@ -6,7 +6,16 @@ maxar-open-data/
 **/*.tif
 **/*.gpkg
 /outputs/reviewed_eval_set/
+/outputs/hot_reviewed_benchmark/
+/outputs/pretrained_cloud_benchmark/
+/outputs/cloud_adapter_hrc_whu_pilot/
 
 *.pyc
 
 __init__.py
+
+__pycache__/
+*.pyo
+*.pyd
+*.pycache
+*.pycache/

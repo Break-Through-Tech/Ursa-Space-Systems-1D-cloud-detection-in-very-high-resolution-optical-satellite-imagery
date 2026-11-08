@@ -21,3 +21,33 @@ Data split: Which tile(s)/event(s) are held out for testing?
 Preprocessing: What resolution, bands, normalization, and invalid-pixel convention will every method use?
 Next independent tasks: reviewers label patches; one person documents the split and review protocol; another adapts the pipeline to run methods on those patches; another selects and tests a pretrained model. Recombine the results at the next weekly meeting.
 In short: the jump is from heuristic candidate masks to trusted labels, then to a common, leakage-safe benchmark. The pipeline can organize that benchmark; full-disaster tiled inference comes after the methods have been compared on labeled data.
+
+I need to sort through this event aggregation bug related to image IDs or split tests. In Brazil, there are no clouds labeled, which is causing predictions to show false positives. This results in metrics like precision and IoU being zero. It seems that the model struggles to identify cloud-free events correctly. I’ll generate a report to highlight the false positive rates and summarize by event. Let’s calculate those results and inspect predictions for cloud coverage.
+---
+
+Yes—the model and the benchmark task match at the task level. I ran the RGB Cloud SegFormer CloudSEN12Plus checkpoint as a pixel-wise cloud segmenter. It predicts clear, thick cloud, thin cloud, and cloud shadow; the benchmark combines thick and thin cloud into the cloud class and scores against the reviewed binary masks. It is the Burdenthrive Cloud SegFormer checkpoint, not a Cloud-Adapter/HRC_WHU checkpoint.
+
+I integrated HOT into the shared evaluator, added a development-only threshold sweep, and ran it alongside the pretrained model on the initial reviewer’s 45 patches. The model uses 512×512 RGB windows, converts 8-bit RGB to float by dividing by 255, and uses a fixed 0.5 combined cloud-probability threshold. The evaluation split is tile-grouped: 30 dev patches and 15 test patches.
+
+Held-out test results
+Method	Precision	Recall	F1	IoU
+Fixed HSV	86.2%	70.1%	77.3%	63.0%
+Dark Channel Prior	93.0%	92.7%	92.9%	86.7%
+HOT (threshold selected on dev: 0.225)	82.0%	89.9%	85.8%	75.1%
+Cloud SegFormer	94.1%	98.5%	96.3%	92.8%
+These pooled scores hide an important difference: the Brazil test patches have no labeled cloud pixels. On those patches, SegFormer’s false-positive rate was 0.0016%, versus 1.10% for HOT. On the nine Hurricane Helene test patches, their F1 scores were 96.3% and 87.3%, respectively. Treat those results as preliminary: the labels are from one reviewer, and both splits include the same two events.
+
+The implementation and run instructions are in notebooks/pipeline/README.md; the runners are evaluate_hot.py and evaluate_pretrained_cloud.py. Results are in the HOT test summary and SegFormer test summary.
+
+Has the project brief been met? Partially. The codebase now has multiple classical methods and a pretrained segmentation model evaluated with the requested metrics. The overall brief is not complete yet: the second label review, final qualitative error analysis and writeup remain, and the benchmark does not establish generalization to a new event. The SegFormer was run locally on the Mac, so this also does not verify the brief’s Colab requirement. The checkpoint’s Sentinel-2 training imagery also differs in resolution and domain from the project’s Maxar imagery, so its strong preliminary scores need confirmation with the reviewed labels and later evaluation.
+
+
+--- 
+checkpoint model selection”
+
+Yes. The closest public checkpoint I found is Cloud-Adapter’s hrc_whu_full_weight.pth, explicitly trained for binary cloud segmentation on HRC_WHU. Its training data is RGB Google Earth imagery spanning 0.5–15 m resolution, so it is a closer resolution/domain match than the Sentinel-2 checkpoint we just tested—but it is not Maxar imagery, and much of HRC_WHU is coarser than Maxar’s roughly 0.3–0.5 m imagery.
+
+The HRC_WHU dataset description reports 150 images, RGB, expert cloud masks, and 0.5–15 m resolution.
+The Cloud-Adapter model repository provides a dedicated HRC_WHU checkpoint. Its dataset loader documents 256×256 RGB samples, with 120 train and 30 test images. Its output classes are clear sky and cloud.
+The official inference app resizes inputs to 256×256 with bilinear interpolation and applies per-image min–max scaling. However, the model config also specifies mean/std normalization, so I’d verify preprocessing against the repository’s example images before trusting a comparison. For our benchmark, use native-resolution 256×256 crops from each 1024 patch—don’t resize the entire patch down to 256, which would discard cloud detail.
+This is a better candidate for a small comparison, but it’s less plug-and-play: it uses the project’s custom MMSegmentation implementation, and the checkpoint is about 1.32 GB. I’d first test 2–3 dev patches, check the predictions visually and confirm preprocessing, then decide whether it’s worth adding to the full evaluation.

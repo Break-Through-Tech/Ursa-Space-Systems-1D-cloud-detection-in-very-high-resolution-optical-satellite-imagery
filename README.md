@@ -78,6 +78,8 @@ In the EDA, NIR was higher in pixels flagged as cloud-like, and NIR and the NDVI
 **You might consider describing the following (as applicable):**
 
 * Model(s) used (e.g., CNN with transfer learning, regression models)
+    Classical pretrained model: RGB Cloud SegFormer CloudSEN12Plus
+    hrc_whu_full_weight.pth
 * Feature selection and Hyperparameter tuning strategies
 * Training setup (e.g., % of data for training/validation, evaluation metric, baseline performance)
 
