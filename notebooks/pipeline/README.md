@@ -63,20 +63,31 @@ MMSegmentation modules and compiled MMCV operators, so this pilot is not
 included in the lightweight local benchmark dependencies. On this Mac, MPS
 inference required `PYTORCH_ENABLE_MPS_FALLBACK=1` for the unsupported bicubic
 interpolation operation.
+The checkpoint is from Hugging Face repository
+`XavierJiezou/cloud-adapter-models`, pinned to revision
+`cf76783e0696f014e251f71d1b42f74b9bf0f0f6`.
 
 The same three-patch dev subset produced these pooled-pixel F1/IoU results:
 
 | Method | Clear Brazil | Helene, ~4% cloud | Helene, ~76% cloud | Pooled |
 |---|---:|---:|---:|---:|
 | HOT RGB | 0.000 / 0.000 | 0.377 / 0.232 | 0.947 / 0.900 | 0.928 / 0.866 |
+| Dark-channel prior (31 px, 0.35) | n/a / n/a | 0.648 / 0.479 | 0.944 / 0.894 | 0.932 / 0.873 |
+| HSV fixed (V=0.70, S=0.20) | n/a / n/a | 0.001 / 0.001 | 0.864 / 0.761 | 0.838 / 0.722 |
+| HSV Otsu (S=0.20) | 0.000 / 0.000 | 0.216 / 0.121 | 0.907 / 0.830 | 0.760 / 0.613 |
 | CloudSEN12Plus SegFormer | undefined | 0.565 / 0.394 | 0.946 / 0.897 | 0.914 / 0.842 |
 | Cloud-Adapter HRC_WHU | 0.000 / 0.000 | 0.777 / 0.635 | 0.963 / 0.929 | 0.954 / 0.912 |
 
-These are exploratory dev-set results, not a model ranking: HOT's threshold
-was tuned on dev, the sample is only three patches from two events, and labels
-are from the initial single-reviewer pass. HRC_WHU is closer to Maxar in
-resolution and shares RGB binary cloud segmentation as the task, but it is
-Google Earth imagery and is not an exact sensor/domain match; the much finer
-Maxar pixels also change the ground area represented by each 256-pixel crop.
-The outputs and run metadata are saved under
-`outputs/cloud_adapter_hrc_whu_pilot/`.
+`n/a` means F1/IoU are undefined because both the reference and prediction
+contain zero cloud pixels. HOT (threshold 0.225) and dark-channel parameters
+(31-pixel window, threshold 0.35) were selected on the full 30-patch dev set,
+which includes these three patches. Treat these pooled-pixel scores as an
+exploratory dev comparison, not a held-out estimate; labels are from the
+initial single-reviewer pass. The Markdown comparison and per-method visual
+panels are in `outputs/cloud_adapter_hrc_whu_pilot/dev_comparison.md`.
+
+HRC_WHU is closer to Maxar in resolution and shares RGB binary cloud
+segmentation as the task, but it is Google Earth imagery and is not an exact
+sensor/domain match; the much finer Maxar pixels also change the ground area
+represented by each 256-pixel crop. The original Cloud-Adapter outputs and run
+metadata are saved under `outputs/cloud_adapter_hrc_whu_pilot/`.

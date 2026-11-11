@@ -59,9 +59,11 @@
 
 * The dataset(s) used: origin, format, size, type of data
 * Data exploration and preprocessing approaches
+
 **Preprocessing**
 The source imagery was downsampled to 10% resolution using bilinear resampling. RGB values were normalized to [0, 1] with percentile winsorization; NIR was percentile-normalized, and NDVI was derived from NIR and red. Pixels marked invalid by the imagery mask were excluded from the EDA. The derived features and preprocessing are described in `Ursa_Space_1D.ipynb`, and the analysis is in `EDA.ipynb`.
 * Insights from your Exploratory Data Analysis (EDA)
+
 - **EDA summary**
 We explored seven engineered features—RGB, brightness, saturation, NIR, and NDVI—from nine Hurricane Helene tiles. After excluding invalid/NoData pixels, the analysis covered about 12.1 million pixels. Histograms, summary statistics, Spearman correlations, and comparisons between heuristic “cloud-like” and other pixels showed strong overlap among RGB and brightness (correlations around 0.93–0.97) and between NIR and NDVI (0.93). Using the exploratory proxy of brightness > 0.70 and saturation < 0.20, about 7.7% of valid pixels were marked cloud-like; this is a heuristic observation, not a ground-truth cloud estimate.
 In the EDA, NIR was higher in pixels flagged as cloud-like, and NIR and the NDVI-style feature were strongly correlated (Spearman 0.93), so compare RGB-only, RGB+NIR, and RGB+NIR+NDVI-style variants through ablation rather than assuming both additions help.
@@ -78,8 +80,8 @@ In the EDA, NIR was higher in pixels flagged as cloud-like, and NIR and the NDVI
 **You might consider describing the following (as applicable):**
 
 * Model(s) used (e.g., CNN with transfer learning, regression models)
-    Classical pretrained model: RGB Cloud SegFormer CloudSEN12Plus
-    hrc_whu_full_weight.pth
+    Classical pretrained model: RGB Cloud SegFormer CloudSEN12Plus hrc_whu_full_weight.pth the same resolution 
+
 * Feature selection and Hyperparameter tuning strategies
 * Training setup (e.g., % of data for training/validation, evaluation metric, baseline performance)
 

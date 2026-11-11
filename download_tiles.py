@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 from urllib.request import Request, urlopen, urlretrieve
 
-GEOJSON_PATH = Path("maxar-open-data/datasets/Brazil-Flooding-May24/10300100887C0F00.geojson")
-OUTPUT_DIR = Path("data/Brazil-Flooding-May24/10300100887C0F00")
+GEOJSON_PATH = Path("maxar-open-data/datasets/Marshall-Fire-21-Update/10200100BCB1A500.geojson")
+OUTPUT_DIR = Path("data/Marshall-Fire-21-Update/10200100BCB1A500")
 ASSET_KEYS = ["visual", "ms_analytic", "pan_analytic", "data-mask"]
 
 with GEOJSON_PATH.open() as f:
@@ -19,6 +19,9 @@ for feature in features:
 
     for key in ASSET_KEYS:
         url = props[key]
+        if not url:
+            print(f"skip (not available): {key} for {quadkey}")
+            continue
         dest = tile_dir / url.rsplit("/", 1)[-1]
 
         with urlopen(Request(url, method="HEAD"), timeout=15) as resp:

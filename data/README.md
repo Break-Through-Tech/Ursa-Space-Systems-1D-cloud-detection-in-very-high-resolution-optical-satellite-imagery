@@ -14,8 +14,12 @@ Currently covers:
 - `HurricaneHelene-Oct24` / catalog id `1030010105AA2600` (9 tiles)
 - `Brazil-Flooding-May24` / catalog id `10300100887C0F00` (6 tiles, reported by
   the team to have no cloud cover)
+- `Marshall-Fire-21-Update` / catalog id `10200100BCB1A500` (15 tiles; the
+  catalog does not provide `ms_analytic` assets for this event)
 
-Each tile has `visual`, `ms_analytic`, `pan_analytic`, and `data-mask` assets.
+Available assets vary by event. The downloader skips assets that are not
+provided by the catalog; Marshall Fire tiles have `visual`, `pan_analytic`, and
+`data-mask` assets.
 
 ## Human-verified cloud reference labels
 
