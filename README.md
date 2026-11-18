@@ -66,7 +66,7 @@ This runs HOT and both HSV methods. The dark-channel prior is run with [`noteboo
 
 ### 4. Run Cloud-Adapter (Colab GPU)
 
-Open the [Cloud-Adapter HRC-WHU notebook in Colab](https://colab.research.google.com/drive/1arhVOTe_zwg_0YTPH7AJ3LoSXU1UiAfp?usp=sharing) (source: [`notebooks/Cloud_Adapter_HRC_WHU_Pilot.ipynb`](notebooks/Cloud_Adapter_HRC_WHU_Pilot.ipynb)) with a GPU runtime. It:
+Open the [Cloud-Adapter HRC-WHU notebook in Colab](https://colab.research.google.com/drive/1arhVOTe_zwg_0YTPH7AJ3LoSXU1UiAfp?usp=sharing) (source: [`notebooks/Cloud_Adapter_HRC_WHU_benchmark.ipynb`](notebooks/Cloud_Adapter_HRC_WHU_benchmark.ipynb)) with a GPU runtime. It:
 
 1. installs MMSegmentation, MMCV and the other dependencies into a separate Python 3.10 environment;
 2. downloads the ~1.32 GB checkpoint;

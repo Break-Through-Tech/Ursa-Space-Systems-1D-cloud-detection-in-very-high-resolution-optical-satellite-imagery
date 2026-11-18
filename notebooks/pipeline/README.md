@@ -44,7 +44,7 @@ trained on lower-resolution Sentinel-2 RGB imagery rather than Maxar VHR.
 
 ## Closer-resolution pretrained checkpoint pilot
 
-[`../Cloud_Adapter_HRC_WHU_Pilot.ipynb`](../Cloud_Adapter_HRC_WHU_Pilot.ipynb)
+[`../Cloud_Adapter_HRC_WHU_benchmark.ipynb`](../Cloud_Adapter_HRC_WHU_benchmark.ipynb)
 contains a Colab setup option for the Cloud-Adapter binary checkpoint trained
 on HRC_WHU Google Earth RGB imagery (reported 0.5–15 m). The runner was also
 executed locally on Apple MPS. It evaluates three fixed dev patches only. Each
