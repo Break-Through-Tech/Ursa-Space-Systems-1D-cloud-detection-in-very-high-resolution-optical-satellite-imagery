@@ -287,3 +287,31 @@ def run_pilot(
         writer.writeheader()
         writer.writerows(records)
     return records, pooled_metrics, metadata
+
+
+def main(argv=None):
+    """CLI entry point so the pilot can run in a separate Python environment."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--eval-root", required=True)
+    parser.add_argument("--output-root", required=True)
+    parser.add_argument("--cloud-adapter-root", required=True)
+    parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--device", default="cuda:0")
+    args = parser.parse_args(argv)
+    records, pooled_metrics, _ = run_pilot(
+        eval_root=args.eval_root,
+        output_root=args.output_root,
+        cloud_adapter_root=args.cloud_adapter_root,
+        checkpoint_path=args.checkpoint,
+        device=args.device,
+    )
+    print("Per-patch metrics:")
+    for record in records:
+        print(record)
+    print("Pooled preliminary metrics:", pooled_metrics)
+
+
+if __name__ == "__main__":
+    main()
