@@ -1,4 +1,11 @@
-"""Evaluate the Cloud-Adapter HRC_WHU checkpoint on three dev patches."""
+"""Evaluate the Cloud-Adapter HRC_WHU checkpoint on the reviewed dev/test patches.
+
+The checkpoint outputs a binary class map (argmax), so there is no threshold
+or other parameter to tune on dev. Dev and test are scored independently and
+never pooled together. Scoring reuses the shared benchmark helpers in
+``evaluate_hsv`` so results are directly comparable with HOT, the dark-channel
+prior, HSV and SegFormer.
+"""
 
 import csv
 import json
@@ -8,46 +15,34 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from . import evaluate_hsv as benchmark
+
 
 MODEL_REPO = "XavierJiezou/cloud-adapter-models"
 MODEL_REVISION = "cf76783e0696f014e251f71d1b42f74b9bf0f0f6"
 CHECKPOINT_NAME = "checkpoints/cloud-adapter/hrc_whu_full_weight.pth"
 CLOUD_ADAPTER_COMMIT = "78c7ea50611b2381f45206a4269a2346116f4525"
+METHOD = "cloud_adapter_hrc_whu"
 WINDOW_SIZE = 256
-PATCH_IDS = (
+LABEL_STATUS_VALUES = {
+    "heuristic",
+    "human_verified",
+    "human_reviewed_single_reviewer",
+}
+# The original three-patch dev pilot, kept so it can be reproduced with --pilot.
+PILOT_PATCH_IDS = (
     "Brazil-Flooding-May24_213131112121_r07168_c06144",
     "HurricaneHelene-Oct24_031313233020_r13312_c15360",
     "HurricaneHelene-Oct24_031313232113_r16384_c16384",
 )
 
 
-def _score(ref, pred):
-    scored = ref != 255
-    y = ref[scored] == 1
-    p = pred[scored] == 1
-    tp = int(np.count_nonzero(y & p))
-    fp = int(np.count_nonzero(~y & p))
-    fn = int(np.count_nonzero(y & ~p))
-    tn = int(np.count_nonzero(~y & ~p))
-    f1_denominator = 2 * tp + fp + fn
-    iou_denominator = tp + fp + fn
-    return {
-        "tp": tp,
-        "fp": fp,
-        "fn": fn,
-        "tn": tn,
-        "n_scored": tp + fp + fn + tn,
-        "precision": tp / (tp + fp) if tp + fp else None,
-        "recall": tp / (tp + fn) if tp + fn else None,
-        "f1": 2 * tp / f1_denominator if f1_denominator else None,
-        "iou": tp / iou_denominator if iou_denominator else None,
-    }
-
-
 def _load_model(cloud_adapter_root, checkpoint_path, device):
+    import sys
+
     import torch
-    from mmseg.apis import init_model
     from mmengine import Config
+    from mmseg.apis import init_model
 
     custom_code = Path(cloud_adapter_root) / "hugging_face"
     config = custom_code / "cloud-adapter-configs" / "binary_classes_256x256.py"
@@ -55,8 +50,6 @@ def _load_model(cloud_adapter_root, checkpoint_path, device):
         raise FileNotFoundError(f"Missing Cloud-Adapter config: {config}")
     if not Path(checkpoint_path).is_file():
         raise FileNotFoundError(f"Missing checkpoint: {checkpoint_path}")
-
-    import sys
 
     sys.path.insert(0, str(custom_code))
     from cloud_adapter.cloud_adapter_dinov2 import (  # noqa: F401
@@ -80,8 +73,9 @@ def _load_model(cloud_adapter_root, checkpoint_path, device):
     return model
 
 
-def _predict_native_patch(model, rgb, torch, SegDataSample):
-    height, width = rgb.shape[:2]
+def _predict_native_patch(model, rgb_uint8, torch, SegDataSample):
+    """Predict 256-pixel native-resolution windows and stitch them back."""
+    height, width = rgb_uint8.shape[:2]
     if height % WINDOW_SIZE or width % WINDOW_SIZE:
         raise ValueError(
             f"Patch dimensions must be multiples of {WINDOW_SIZE}"
@@ -89,7 +83,7 @@ def _predict_native_patch(model, rgb, torch, SegDataSample):
     prediction = np.zeros((height, width), dtype=np.uint8)
     for top in range(0, height, WINDOW_SIZE):
         for left in range(0, width, WINDOW_SIZE):
-            tile_rgb = rgb[
+            tile_rgb = rgb_uint8[
                 top:top + WINDOW_SIZE,
                 left:left + WINDOW_SIZE,
             ]
@@ -104,10 +98,11 @@ def _predict_native_patch(model, rgb, torch, SegDataSample):
             inputs = torch.from_numpy(
                 tile_bgr.transpose(2, 0, 1)
             ).float()
-            result = model.test_step({
-                "inputs": [inputs],
-                "data_samples": [sample],
-            })[0]
+            with torch.inference_mode():
+                result = model.test_step({
+                    "inputs": [inputs],
+                    "data_samples": [sample],
+                })[0]
             tile_mask = (
                 result.pred_sem_seg.data.squeeze()
                 .detach()
@@ -128,118 +123,138 @@ def _predict_native_patch(model, rgb, torch, SegDataSample):
     return prediction
 
 
-def _save_comparison(rgb, ref, pred, output_path, title):
-    import matplotlib.pyplot as plt
-
-    scored = ref != 255
-    ref_vis = np.zeros((*ref.shape, 3), dtype=np.uint8)
-    ref_vis[ref == 1] = (255, 220, 0)
-    ref_vis[~scored] = (100, 100, 100)
-    pred_vis = np.repeat((pred * 255)[..., None], 3, axis=2)
-    errors = (rgb.astype(np.float32) * 0.35).astype(np.uint8)
-    errors[scored & (pred == 1) & (ref == 0)] = (255, 0, 0)
-    errors[scored & (pred == 0) & (ref == 1)] = (0, 255, 255)
-    errors[~scored] = (100, 100, 100)
-
-    fig, axes = plt.subplots(1, 4, figsize=(18, 5))
-    for axis, image, label in zip(
-        axes,
-        (rgb, ref_vis, pred_vis, errors),
-        ("RGB", "Reference (yellow cloud)", "Model (white cloud)", "Errors (red FP, cyan FN)"),
-    ):
-        axis.imshow(image)
-        axis.set_title(label)
-        axis.axis("off")
-    fig.suptitle(title)
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=120)
-    plt.close(fig)
+def _image_paths(eval_root, split, pilot):
+    folder = Path(eval_root) / split / "images"
+    if pilot:
+        paths = [folder / f"{patch_id}.png" for patch_id in PILOT_PATCH_IDS]
+        missing = [path.name for path in paths if not path.is_file()]
+        if missing:
+            raise FileNotFoundError(f"Missing pilot patches: {missing}")
+        return paths
+    paths = sorted(folder.glob("*.png"))
+    if not paths:
+        raise FileNotFoundError(f"No evaluation PNGs found in {folder}")
+    return paths
 
 
-def run_pilot(
+def _write_csv(path, rows):
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _json_safe(value):
+    """Replace NaN (undefined metrics) with None so the JSON stays valid."""
+    if isinstance(value, float) and value != value:
+        return None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    return value
+
+
+def evaluate_split(
+    model,
     eval_root,
     output_root,
-    cloud_adapter_root,
-    checkpoint_path,
-    device="cuda:0",
+    split,
+    label_status,
+    device,
+    pilot=False,
 ):
-    """Run fixed checkpoint on three selected dev patches; no threshold tuning."""
     import torch
-    import mmcv
-    import mmengine
-    import mmseg
     from mmseg.structures import SegDataSample
 
-    eval_root = Path(eval_root)
-    output_root = Path(output_root)
-    output_root.mkdir(parents=True, exist_ok=True)
-    model = _load_model(cloud_adapter_root, checkpoint_path, device)
-    records = []
-    pooled = {key: 0 for key in ("tp", "fp", "fn", "tn")}
+    if split not in {"dev", "test"}:
+        raise ValueError("split must be dev or test")
+    if pilot and split != "dev":
+        raise ValueError("The pilot subset is dev-only")
 
-    for patch_id in PATCH_IDS:
-        image_path = eval_root / "dev" / "images" / f"{patch_id}.png"
-        mask_path = eval_root / "dev" / "masks" / f"{patch_id}_mask.png"
-        if not image_path.is_file() or not mask_path.is_file():
-            raise FileNotFoundError(
-                f"Missing dev image/mask pair for {patch_id}"
-            )
-        rgb = np.asarray(
-            Image.open(image_path).convert("RGB"),
-            dtype=np.uint8,
+    output = Path(output_root) / split / METHOD
+    output.mkdir(parents=True, exist_ok=True)
+    rows = []
+
+    for image_path in _image_paths(eval_root, split, pilot):
+        rgb, ref, valid, valid_source = benchmark.load_example(
+            eval_root, split, image_path
         )
-        ref = np.asarray(Image.open(mask_path).convert("L"), dtype=np.uint8)
-        if rgb.shape != (1024, 1024, 3) or ref.shape != (1024, 1024):
-            raise ValueError(f"Expected 1024x1024 pair for {patch_id}")
-        if not np.isin(ref, (0, 1, 255)).all():
-            raise ValueError(f"Unsupported reference labels in {patch_id}")
+        # load_example returns uint8/255; recover the exact uint8 values.
+        rgb_uint8 = np.rint(rgb * 255).astype(np.uint8)
 
         start = time.perf_counter()
-        pred = _predict_native_patch(model, rgb, torch, SegDataSample)
-        elapsed = time.perf_counter() - start
-        metrics = _score(ref, pred)
-        for key in pooled:
-            pooled[key] += metrics[key]
-        records.append({
-            "patch_id": patch_id,
-            "predict_seconds": elapsed,
-            **metrics,
-        })
-
-        np.save(output_root / f"{patch_id}_prediction.npy", pred)
-        Image.fromarray(pred).save(
-            output_root / f"{patch_id}_prediction.png"
+        prediction = _predict_native_patch(
+            model, rgb_uint8, torch, SegDataSample
         )
-        _save_comparison(
+        elapsed = time.perf_counter() - start
+        scores = benchmark.score_prediction(ref, prediction, valid)
+
+        np.save(output / f"{image_path.stem}_mask.npy", prediction)
+        Image.fromarray(prediction).save(
+            output / f"{image_path.stem}_mask.png"
+        )
+        benchmark.save_comparison(
             rgb,
             ref,
-            pred,
-            output_root / f"{patch_id}_comparison.png",
-            (
-                f"{patch_id} | F1={metrics['f1']:.3f}, "
-                f"IoU={metrics['iou']:.3f}"
-                if metrics["f1"] is not None
-                else f"{patch_id} | F1 undefined, IoU undefined"
+            prediction,
+            valid,
+            output / f"{image_path.stem}_comparison.png",
+            f"{image_path.stem} | Cloud-Adapter HRC_WHU | {label_status}",
+        )
+        rows.append({
+            "image_id": image_path.stem,
+            "split": split,
+            "method": METHOD,
+            "label_status": label_status,
+            "valid_source": valid_source,
+            "model_id": MODEL_REPO,
+            "model_revision": MODEL_REVISION,
+            "device": device,
+            "predict_seconds": elapsed,
+            "cloud_percent_valid": (
+                100 * benchmark.safe_ratio(
+                    prediction[valid].sum(), valid.sum()
+                )
             ),
+            **scores,
+        })
+        print(
+            f"[{split}] {image_path.stem}: F1={scores['f1']:.3f} "
+            f"IoU={scores['iou']:.3f} ({elapsed:.2f} s)",
+            flush=True,
         )
 
-    tp, fp, fn, tn = (pooled[key] for key in ("tp", "fp", "fn", "tn"))
-    pooled_metrics = {
-        **pooled,
-        "n_scored": tp + fp + fn + tn,
-        "precision": tp / (tp + fp) if tp + fp else float("nan"),
-        "recall": tp / (tp + fn) if tp + fn else float("nan"),
-        "f1": 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else float("nan"),
-        "iou": tp / (tp + fp + fn) if tp + fp + fn else float("nan"),
+    _write_csv(output / "metrics_per_image.csv", rows)
+
+    counts = {
+        key: sum(row[key] for row in rows)
+        for key in ("tp", "fp", "fn", "tn")
     }
-    metadata = {
-        "model_repo": MODEL_REPO,
+    seconds = [row["predict_seconds"] for row in rows]
+    summary = {
+        "method": METHOD,
+        "split": split,
+        "label_status": label_status,
+        "aggregation": "pooled_pixels",
+        "n_images": len(rows),
+        "model_id": MODEL_REPO,
         "model_revision": MODEL_REVISION,
+        "device": device,
+        "mean_predict_seconds": float(np.mean(seconds)),
+        **benchmark.metrics_from_counts(**counts),
+    }
+    _write_csv(output / "metrics_summary.csv", [summary])
+
+    metadata = {
+        **summary,
+        "subset": "pilot (3 fixed dev patches)" if pilot else "all patches",
+        "patch_ids": [row["image_id"] for row in rows],
         "checkpoint": CHECKPOINT_NAME,
         "cloud_adapter_source_commit": CLOUD_ADAPTER_COMMIT,
         "dataset": "HRC_WHU Google Earth RGB (reported 0.5-15 m resolution)",
         "maxar_input_resolution": "approximately 0.3-0.5 m",
-        "input_size": [WINDOW_SIZE, WINDOW_SIZE],
+        "window_size": WINDOW_SIZE,
         "windows_per_patch": (1024 // WINDOW_SIZE) ** 2,
         "config_input_size_override": [WINDOW_SIZE, WINDOW_SIZE],
         "input_dtype_range": "uint8 [0, 255]",
@@ -250,40 +265,118 @@ def run_pilot(
             "description": "Applied by the config data preprocessor after BGR-to-RGB conversion",
         },
         "cloud_class": 1,
+        "decision_rule": "argmax of binary output; no threshold tuned",
         "ignored_label": 255,
-        "reviewer": "reviewer1",
-        "split": "dev only",
-        "patch_ids": list(PATCH_IDS),
-        "per_patch_metrics": records,
-        "pooled_metrics": pooled_metrics,
-        "versions": {
-            "torch": torch.__version__,
-            "mmcv": mmcv.__version__,
-            "mmengine": mmengine.__version__,
-            "mmseg": mmseg.__version__,
-        },
-        "device": device,
-        "device_name": (
-            torch.cuda.get_device_name(0)
-            if device.startswith("cuda")
-            else "Apple Metal Performance Shaders"
-            if device == "mps"
-            else "CPU"
-        ),
         "caveats": [
-            "Three patches only; exploratory pilot, not model ranking.",
-            "Initial single-reviewer labels; the second review is not incorporated.",
+            "Initial single-reviewer labels; inter-reviewer agreement is unknown.",
+            "Both splits contain the same two events (Hurricane Helene, Brazil Flooding).",
             "HRC_WHU resolution is closer to Maxar than Sentinel-2 but is not an exact sensor/domain match.",
         ],
     }
-    (output_root / "run_metadata.json").write_text(
-        json.dumps(metadata, indent=2, allow_nan=False) + "\n",
+    (output / "run_metadata.json").write_text(
+        json.dumps(_json_safe(metadata), indent=2, allow_nan=False) + "\n",
         encoding="utf-8",
     )
-    with (output_root / "metrics_per_patch.csv").open(
-        "w", newline="", encoding="utf-8"
-    ) as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(records[0]))
-        writer.writeheader()
-        writer.writerows(records)
-    return records, pooled_metrics, metadata
+    return rows, summary
+
+
+def run(
+    eval_root,
+    output_root,
+    cloud_adapter_root,
+    checkpoint_path,
+    split="both",
+    label_status="human_reviewed_single_reviewer",
+    device="cuda:0",
+    pilot=False,
+):
+    """Load the checkpoint once and evaluate each requested split separately."""
+    import mmcv
+    import mmengine
+    import mmseg
+    import torch
+
+    if label_status not in LABEL_STATUS_VALUES:
+        raise ValueError(f"Unsupported label_status: {label_status}")
+    if pilot:
+        split = "dev"
+    splits = ("dev", "test") if split == "both" else (split,)
+
+    model = _load_model(cloud_adapter_root, checkpoint_path, device)
+    versions = {
+        "torch": torch.__version__,
+        "mmcv": mmcv.__version__,
+        "mmengine": mmengine.__version__,
+        "mmseg": mmseg.__version__,
+    }
+    print("Library versions:", versions)
+
+    summaries = {}
+    for name in splits:
+        _, summaries[name] = evaluate_split(
+            model,
+            eval_root,
+            output_root,
+            name,
+            label_status,
+            device,
+            pilot=pilot,
+        )
+        metadata_path = Path(output_root) / name / METHOD / "run_metadata.json"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["versions"] = versions
+        metadata_path.write_text(
+            json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+        )
+    return summaries
+
+
+def main(argv=None):
+    """CLI entry point so the runner can use a separate Python environment."""
+    import argparse
+    import os
+
+    # Colab exports MPLBACKEND for its notebook kernel; the venv lacks that backend.
+    os.environ["MPLBACKEND"] = "Agg"
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--eval-root", required=True)
+    parser.add_argument("--output-root", required=True)
+    parser.add_argument("--cloud-adapter-root", required=True)
+    parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--device", default="cuda:0")
+    parser.add_argument(
+        "--split", choices=("dev", "test", "both"), default="both"
+    )
+    parser.add_argument(
+        "--label-status",
+        choices=sorted(LABEL_STATUS_VALUES),
+        default="human_reviewed_single_reviewer",
+    )
+    parser.add_argument(
+        "--pilot",
+        action="store_true",
+        help="Only run the original three dev patches.",
+    )
+    args = parser.parse_args(argv)
+    summaries = run(
+        eval_root=args.eval_root,
+        output_root=args.output_root,
+        cloud_adapter_root=args.cloud_adapter_root,
+        checkpoint_path=args.checkpoint,
+        split=args.split,
+        label_status=args.label_status,
+        device=args.device,
+        pilot=args.pilot,
+    )
+    for name, summary in summaries.items():
+        print(
+            f"{name}: n={summary['n_images']} "
+            f"precision={summary['precision']:.3f} "
+            f"recall={summary['recall']:.3f} "
+            f"F1={summary['f1']:.3f} IoU={summary['iou']:.3f}"
+        )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,92 @@
+{
+  "method": "cloud_adapter_hrc_whu",
+  "split": "dev",
+  "label_status": "human_reviewed_single_reviewer",
+  "aggregation": "pooled_pixels",
+  "n_images": 30,
+  "model_id": "XavierJiezou/cloud-adapter-models",
+  "model_revision": "cf76783e0696f014e251f71d1b42f74b9bf0f0f6",
+  "device": "cuda:0",
+  "mean_predict_seconds": 1.599340457666661,
+  "tp": 3593776,
+  "fp": 152517,
+  "fn": 75741,
+  "tn": 27080056,
+  "n_scored": 30902090,
+  "precision": 0.959288555379945,
+  "recall": 0.9793594088813323,
+  "f1": 0.9692200851963575,
+  "iou": 0.9402783962675372,
+  "subset": "all patches",
+  "patch_ids": [
+    "Brazil-Flooding-May24_213131112121_r07168_c06144",
+    "Brazil-Flooding-May24_213131112121_r08192_c05120",
+    "Brazil-Flooding-May24_213131112121_r16384_c15360",
+    "Brazil-Flooding-May24_213131112210_r14336_c11264",
+    "Brazil-Flooding-May24_213131112210_r14336_c12288",
+    "Brazil-Flooding-May24_213131112210_r16384_c11264",
+    "Brazil-Flooding-May24_213131112230_r00000_c11264",
+    "Brazil-Flooding-May24_213131112230_r05120_c12288",
+    "Brazil-Flooding-May24_213131112230_r10240_c12288",
+    "Brazil-Flooding-May24_213131112301_r00000_c03072",
+    "Brazil-Flooding-May24_213131112301_r04096_c06144",
+    "Brazil-Flooding-May24_213131112301_r05120_c05120",
+    "HurricaneHelene-Oct24_031313232113_r16384_c11264",
+    "HurricaneHelene-Oct24_031313232113_r16384_c12288",
+    "HurricaneHelene-Oct24_031313232113_r16384_c16384",
+    "HurricaneHelene-Oct24_031313232131_r01024_c12288",
+    "HurricaneHelene-Oct24_031313232131_r06144_c08192",
+    "HurricaneHelene-Oct24_031313232131_r14336_c09216",
+    "HurricaneHelene-Oct24_031313233002_r16384_c00000",
+    "HurricaneHelene-Oct24_031313233002_r16384_c14336",
+    "HurricaneHelene-Oct24_031313233002_r16384_c16384",
+    "HurricaneHelene-Oct24_031313233003_r16384_c00000",
+    "HurricaneHelene-Oct24_031313233003_r16384_c02048",
+    "HurricaneHelene-Oct24_031313233003_r16384_c03072",
+    "HurricaneHelene-Oct24_031313233020_r01024_c01024",
+    "HurricaneHelene-Oct24_031313233020_r07168_c03072",
+    "HurricaneHelene-Oct24_031313233020_r13312_c15360",
+    "HurricaneHelene-Oct24_031313233023_r01024_c00000",
+    "HurricaneHelene-Oct24_031313233023_r08192_c00000",
+    "HurricaneHelene-Oct24_031313233023_r13312_c01024"
+  ],
+  "checkpoint": "checkpoints/cloud-adapter/hrc_whu_full_weight.pth",
+  "cloud_adapter_source_commit": "78c7ea50611b2381f45206a4269a2346116f4525",
+  "dataset": "HRC_WHU Google Earth RGB (reported 0.5-15 m resolution)",
+  "maxar_input_resolution": "approximately 0.3-0.5 m",
+  "window_size": 256,
+  "windows_per_patch": 16,
+  "config_input_size_override": [
+    256,
+    256
+  ],
+  "input_dtype_range": "uint8 [0, 255]",
+  "input_channel_order": "BGR to MMSegmentation preprocessor",
+  "normalization": {
+    "configured_mean_rgb": [
+      123.675,
+      116.28,
+      103.53
+    ],
+    "configured_std_rgb": [
+      58.395,
+      57.12,
+      57.375
+    ],
+    "description": "Applied by the config data preprocessor after BGR-to-RGB conversion"
+  },
+  "cloud_class": 1,
+  "decision_rule": "argmax of binary output; no threshold tuned",
+  "ignored_label": 255,
+  "caveats": [
+    "Initial single-reviewer labels; inter-reviewer agreement is unknown.",
+    "Both splits contain the same two events (Hurricane Helene, Brazil Flooding).",
+    "HRC_WHU resolution is closer to Maxar than Sentinel-2 but is not an exact sensor/domain match."
+  ],
+  "versions": {
+    "torch": "2.1.0+cu118",
+    "mmcv": "2.1.0",
+    "mmengine": "0.10.7",
+    "mmseg": "1.2.2"
+  }
+}

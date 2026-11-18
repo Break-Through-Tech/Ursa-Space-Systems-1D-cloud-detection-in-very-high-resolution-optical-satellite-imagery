@@ -1,0 +1,2 @@
+method,split,label_status,aggregation,n_images,model_id,model_revision,device,mean_predict_seconds,tp,fp,fn,tn,n_scored,precision,recall,f1,iou
+cloud_adapter_hrc_whu,dev,human_reviewed_single_reviewer,pooled_pixels,30,XavierJiezou/cloud-adapter-models,cf76783e0696f014e251f71d1b42f74b9bf0f0f6,cuda:0,1.599340457666661,3593776,152517,75741,27080056,30902090,0.959288555379945,0.9793594088813323,0.9692200851963575,0.9402783962675372
