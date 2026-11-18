@@ -292,6 +292,10 @@ def run_pilot(
 def main(argv=None):
     """CLI entry point so the pilot can run in a separate Python environment."""
     import argparse
+    import os
+
+    # Colab exports MPLBACKEND for its notebook kernel; the venv lacks that backend.
+    os.environ["MPLBACKEND"] = "Agg"
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--eval-root", required=True)
