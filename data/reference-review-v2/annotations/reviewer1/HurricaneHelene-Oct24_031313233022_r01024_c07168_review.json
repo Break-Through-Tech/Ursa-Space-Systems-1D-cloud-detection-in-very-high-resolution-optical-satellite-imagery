@@ -1,9 +1,9 @@
 {
   "patch_id": "HurricaneHelene-Oct24_031313233022_r01024_c07168",
-  "status": "pending",
+  "status": "reviewed",
   "reviewer_id": "reviewer1",
-  "reviewer": "",
-  "reviewed_at_utc": null,
+  "reviewer": "Lisa",
+  "reviewed_at_utc": "2026-11-03T22:20:41.149568+00:00",
   "pseudo_cloud_fraction": 0.14380264282226562,
   "event_id": "HurricaneHelene-Oct24",
   "scene_condition": "cloudy_or_unverified",
