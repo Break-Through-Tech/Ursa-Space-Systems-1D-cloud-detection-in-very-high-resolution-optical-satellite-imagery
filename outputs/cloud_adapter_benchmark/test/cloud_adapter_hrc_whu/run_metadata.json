@@ -1,0 +1,77 @@
+{
+  "method": "cloud_adapter_hrc_whu",
+  "split": "test",
+  "label_status": "human_reviewed_single_reviewer",
+  "aggregation": "pooled_pixels",
+  "n_images": 15,
+  "model_id": "XavierJiezou/cloud-adapter-models",
+  "model_revision": "cf76783e0696f014e251f71d1b42f74b9bf0f0f6",
+  "device": "cuda:0",
+  "mean_predict_seconds": 1.6514663980666986,
+  "tp": 1755447,
+  "fp": 73423,
+  "fn": 55061,
+  "tn": 13691296,
+  "n_scored": 15575227,
+  "precision": 0.9598533520698573,
+  "recall": 0.9695880935074576,
+  "f1": 0.9646961651139289,
+  "iou": 0.9318000500018313,
+  "subset": "all patches",
+  "patch_ids": [
+    "Brazil-Flooding-May24_213131112123_r08192_c15360",
+    "Brazil-Flooding-May24_213131112123_r09216_c14336",
+    "Brazil-Flooding-May24_213131112123_r10240_c12288",
+    "Brazil-Flooding-May24_213131112212_r01024_c13312",
+    "Brazil-Flooding-May24_213131112212_r05120_c11264",
+    "Brazil-Flooding-May24_213131112212_r06144_c12288",
+    "HurricaneHelene-Oct24_031313232133_r08192_c06144",
+    "HurricaneHelene-Oct24_031313232133_r08192_c13312",
+    "HurricaneHelene-Oct24_031313232133_r14336_c06144",
+    "HurricaneHelene-Oct24_031313233021_r03072_c02048",
+    "HurricaneHelene-Oct24_031313233021_r04096_c02048",
+    "HurricaneHelene-Oct24_031313233021_r07168_c03072",
+    "HurricaneHelene-Oct24_031313233022_r01024_c07168",
+    "HurricaneHelene-Oct24_031313233022_r03072_c07168",
+    "HurricaneHelene-Oct24_031313233022_r08192_c02048"
+  ],
+  "checkpoint": "checkpoints/cloud-adapter/hrc_whu_full_weight.pth",
+  "cloud_adapter_source_commit": "78c7ea50611b2381f45206a4269a2346116f4525",
+  "dataset": "HRC_WHU Google Earth RGB (reported 0.5-15 m resolution)",
+  "maxar_input_resolution": "approximately 0.3-0.5 m",
+  "window_size": 256,
+  "windows_per_patch": 16,
+  "config_input_size_override": [
+    256,
+    256
+  ],
+  "input_dtype_range": "uint8 [0, 255]",
+  "input_channel_order": "BGR to MMSegmentation preprocessor",
+  "normalization": {
+    "configured_mean_rgb": [
+      123.675,
+      116.28,
+      103.53
+    ],
+    "configured_std_rgb": [
+      58.395,
+      57.12,
+      57.375
+    ],
+    "description": "Applied by the config data preprocessor after BGR-to-RGB conversion"
+  },
+  "cloud_class": 1,
+  "decision_rule": "argmax of binary output; no threshold tuned",
+  "ignored_label": 255,
+  "caveats": [
+    "Initial single-reviewer labels; inter-reviewer agreement is unknown.",
+    "Both splits contain the same two events (Hurricane Helene, Brazil Flooding).",
+    "HRC_WHU resolution is closer to Maxar than Sentinel-2 but is not an exact sensor/domain match."
+  ],
+  "versions": {
+    "torch": "2.1.0+cu118",
+    "mmcv": "2.1.0",
+    "mmengine": "0.10.7",
+    "mmseg": "1.2.2"
+  }
+}

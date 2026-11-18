@@ -9,6 +9,8 @@ maxar-open-data/
 /outputs/hot_reviewed_benchmark/
 /outputs/pretrained_cloud_benchmark/
 /outputs/cloud_adapter_hrc_whu_pilot/
+# Raw .npy masks are large; the 0/1 mask PNGs hold the same data.
+/outputs/cloud_adapter_benchmark/**/*.npy
 
 *.pyc
 
